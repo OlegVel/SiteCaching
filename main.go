@@ -19,8 +19,16 @@ var (
 
 func main() {
 	var cache = &lru.Cache{}
-	Caching(siteUrl, cache)
-	Caching(imageUrl, cache)
+
+	err := Caching(siteUrl, cache)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = Caching(imageUrl, cache)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	ticker := time.NewTicker(10 * time.Second)
 	go func() {
@@ -42,12 +50,12 @@ func SiteHandler(url string, cache *lru.Cache) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		resp, ok := cache.Get(url)
 		if !ok {
-			log.Fatal("error getting")
+			writer.WriteHeader(http.StatusNoContent)
 		}
 
 		header, ok := cache.Get(headerPrefix + url)
 		if !ok {
-			log.Fatal("error getting")
+			writer.WriteHeader(http.StatusNoContent)
 		}
 
 		for k, v := range header.(http.Header) {
@@ -57,7 +65,7 @@ func SiteHandler(url string, cache *lru.Cache) http.HandlerFunc {
 		response := bytes.NewReader(resp.([]byte))
 		_, err := io.Copy(writer, response)
 		if err != nil {
-			log.Fatal(err)
+			writer.WriteHeader(http.StatusServiceUnavailable)
 		}
 	}
 }
