@@ -4,104 +4,62 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"time"
 )
 
-var url = "http://108.61.245.170"
-
-type SiteCash struct {
-	html  bytes.Buffer
-	image bytes.Buffer
-}
-
 func main() {
-	var site = &SiteCash{}
+	var site = &SiteCach{
+		url: "http://108.61.245.170",
+	}
 	site.HtmlCashing()
 	site.ImageCashing()
+
 	ticker := time.NewTicker(10 * time.Second)
 	go func() {
 		for t := range ticker.C {
 			site.HtmlCashing()
 			site.ImageCashing()
-			fmt.Println("Tick at", t)
+			fmt.Println("Updated at", t)
 		}
 	}()
 
-	http.Handle("/", SiteHandler())
+	http.Handle("/", SiteHandler(site))
 	http.Handle("/image.jpg", ImageHandler(site))
 	if err := http.ListenAndServe(":1080", nil); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func SiteHandler() http.HandlerFunc {
+func SiteHandler(site *SiteCach) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
+		fmt.Println(site.cache.Len())
+		resp, ok := site.cache.Get(site.url)
+		if !ok {
+			log.Fatal("error getting")
+		}
+		response := bytes.NewReader(resp.([]byte))
 
-		bBytes, err := ioutil.ReadAll(request.Body)
-		ss := string(bBytes)
-		fmt.Println("Header: ", request.Header)
-		fmt.Println("Body: ", ss)
-
-		client := &http.Client{}
-		resp, err := client.Get(url)
+		_, err := io.Copy(writer, response)
 		if err != nil {
 			log.Fatal(err)
 		}
-		defer resp.Body.Close()
-
-		bodyBytes, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		writer.Write(bodyBytes)
-		resp.Body.Close()
 
 	}
 }
 
-func ImageHandler(site *SiteCash) http.HandlerFunc {
+func ImageHandler(site *SiteCach) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
-		var temp = bytes.Buffer{}
-		tee := io.TeeReader(&site.image, writer)
-		_, err := io.Copy(&temp, tee)
+		resp, ok := site.cache.Get(site.url + "/image.jpg")
+		if !ok {
+			log.Fatal("error getting")
+		}
+		response := bytes.NewReader(resp.([]byte))
+
+		_, err := io.Copy(writer, response)
 		if err != nil {
 			log.Fatal(err)
 		}
-		_, err = io.Copy(&site.image, &temp)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-}
-
-func (site *SiteCash) ImageCashing() {
-	client := &http.Client{}
-	resp, err := client.Get(url + "/image.jpg")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer resp.Body.Close()
-
-	_, err = io.Copy(&site.image, resp.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
-func (site *SiteCash) HtmlCashing() {
-	client := &http.Client{}
-	resp, err := client.Get(url)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer resp.Body.Close()
-
-	_, err = io.Copy(&site.html, resp.Body)
-	if err != nil {
-		log.Fatal(err)
 	}
 }
