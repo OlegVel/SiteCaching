@@ -51,17 +51,14 @@ func SiteHandler(url string, cache *lru.Cache) http.HandlerFunc {
 		}
 
 		for k, v := range header.(http.Header) {
-			fmt.Printf("Header field %q, Value %q\n", k, v)
 			writer.Header().Set(k, v[0])
 		}
 
 		response := bytes.NewReader(resp.([]byte))
-
 		_, err := io.Copy(writer, response)
 		if err != nil {
 			log.Fatal(err)
 		}
-
 	}
 }
 
