@@ -11,25 +11,28 @@ import (
 	"time"
 )
 
-var url = "http://108.61.245.170"
-var headerPrefix = "header_"
+var (
+	siteUrl      = "http://108.61.245.170"
+	imageUrl     = siteUrl + "/image.jpg"
+	headerPrefix = "header_"
+)
 
 func main() {
 	var cache = &lru.Cache{}
-	Caching(url, cache)
-	Caching(url+"/image.jpg", cache)
+	Caching(siteUrl, cache)
+	Caching(imageUrl, cache)
 
 	ticker := time.NewTicker(10 * time.Second)
 	go func() {
 		for t := range ticker.C {
-			Caching(url, cache)
-			Caching(url+"/image.jpg", cache)
+			Caching(siteUrl, cache)
+			Caching(imageUrl, cache)
 			fmt.Println("Updated at", t)
 		}
 	}()
 
-	http.Handle("/", SiteHandler(url, cache))
-	http.Handle("/image.jpg", SiteHandler(url+"/image.jpg", cache))
+	http.Handle("/", SiteHandler(siteUrl, cache))
+	http.Handle("/image.jpg", SiteHandler(imageUrl, cache))
 	if err := http.ListenAndServe(":1080", nil); err != nil {
 		log.Fatal(err)
 	}
